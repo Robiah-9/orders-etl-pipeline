@@ -29,44 +29,44 @@ generate_csv -> read CSV -> transform -> load -> analyze
 
 1. **Clone the repo and create a virtual environment**
 
-```
-   git clone <your-repo-url>
-   cd <your-repo-folder>
+   ```
+   git clone https://github.com/Robiah-9/orders-etl-pipeline.git
+   cd orders-etl-pipeline
    python -m venv .venv
-```
+   ```
 
 2. **Activate the environment and install dependencies**
 
-```
+   ```
    .venv\Scripts\activate
    pip install -r requirements.txt
-```
+   ```
 
    If PowerShell blocks the activate step with an error about scripts being disabled, run this once in that window and try again:
 
-```
+   ```
    Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-```
+   ```
 
 3. **Create an empty PostgreSQL database**
 
-```sql
+   ```sql
    CREATE DATABASE orders_etl;
-```
+   ```
 
 4. **Add your credentials.** Copy the example file and fill in your values:
 
-```
+   ```
    copy .env.example .env
-```
+   ```
 
-```
+   ```
    DB_USER=your_user
    DB_PASSWORD=your_password
    DB_HOST=localhost
    DB_PORT=5432
    DB_NAME=orders_etl
-```
+   ```
 
    The script checks that all five variables are set and stops with a clear message if any are missing.
 
@@ -140,3 +140,4 @@ The total revenue computed in SQL (1,346,115.32) matches the total computed in p
 ## Author
 
 Robiat
+`````
