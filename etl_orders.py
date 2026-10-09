@@ -1,5 +1,6 @@
 import os
 import random
+import logging
 from datetime import date, timedelta
 
 import pandas as pd
@@ -10,6 +11,11 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
+log = logging.getLogger("etl")
 
 load_dotenv()
 
@@ -190,9 +196,18 @@ def analyze(engine):
 def main():
     generate_csv("orders_raw.csv")
     raw = pd.read_csv("orders_raw.csv")
+    log.info("Read %d rows", len(raw))
 
     clean, rejected = transform(raw)
+    dupes_dropped = len(raw) - len(clean) - len(rejected)
+    log.warning(
+        "Dropped %d rows (%d duplicates, %d invalid)",
+        len(raw) - len(clean), dupes_dropped, len(rejected),
+    )
+
     loaded = load(clean, engine)
+    log.info("Loaded %d rows", loaded)
+
     analyze(engine)
 
 
