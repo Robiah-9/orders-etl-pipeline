@@ -1,4 +1,4 @@
-Orders ETL Pipeline
+## Orders ETL Pipeline
 
 I built this project to practise moving data from a CSV file into PostgreSQL, cleaning it along the way, and using SQL to answer questions about the data.
 
