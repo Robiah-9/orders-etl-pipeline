@@ -2,27 +2,24 @@ Orders ETL Pipeline
 
 I built this project to practise moving data from a CSV file into PostgreSQL, cleaning it along the way, and using SQL to answer questions about the data.
 
-The dataset is intentionally messy. It contains duplicate orders, missing prices, negative quantities, and inconsistent status values. The idea was to work through some of the problems that can come up when handling data instead of starting with a perfectly clean dataset.
+The dataset is intentionally messy. It contains duplicate orders, missing prices, negative quantities, and inconsistent order statuses. I wanted to work through some of the problems that can come up when handling real-world data rather than starting with a perfectly clean dataset.
 
-I used Python and pandas for the extraction and cleaning steps, SQLAlchemy to work with PostgreSQL, and SQL queries to analyse the results.
+I used Python and pandas to process the data, SQLAlchemy to work with PostgreSQL, and SQL queries to analyse the results.
 
-One thing I wanted to get right was making the pipeline safe to run more than once without creating duplicate records.
+I also wanted to make sure the pipeline could run more than once without creating duplicate records.
 
-How it works
+How It Works
 
 The pipeline follows four steps:
 
-"Generate data → Clean data → Load into PostgreSQL → Analyse results"
+Extract → Transform → Load → Analyse
 
-Extract: Generate around 1,000 sample orders and save them to "orders_raw.csv". Some records contain duplicates or inconsistent values on purpose.
+1. Extract: Generate around 1,000 sample orders and save them to "orders_raw.csv".
+2. Transform: Remove duplicate order IDs, standardise order statuses, parse dates, separate invalid records, and calculate each order's total.
+3. Load: Create "customers" and "orders" tables in PostgreSQL and load the cleaned data using upserts.
+4. Analyse: Query the database to calculate monthly revenue, identify the top five customers by spending, and count orders by status.
 
-Transform: Use pandas to remove duplicate order IDs, standardise order statuses, parse dates, separate invalid rows, and calculate the total for each order.
-
-Load: Create "customers" and "orders" tables in PostgreSQL using SQLAlchemy, then load the cleaned data using upserts.
-
-Analyse: Run queries to find monthly revenue, the five customers who spent the most, and the number of orders in each status.
-
-Tools used
+Tech Stack
 
 - Python 3
 - pandas
@@ -31,17 +28,19 @@ Tools used
 - psycopg2
 - python-dotenv
 
-Getting started
+Getting Started
 
 These instructions are for Windows.
 
-1. Clone the repository
+1. Clone the Repository
 
 git clone https://github.com/Robiah-9/orders-etl-pipeline.git
 cd orders-etl-pipeline
 python -m venv .venv
 
-2. Activate the environment and install the dependencies
+2. Install Dependencies
+
+Activate the virtual environment and install the required packages:
 
 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -50,19 +49,19 @@ If PowerShell blocks the activation script because script execution is disabled,
 
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 
-3. Create the database
+3. Create the Database
 
 Open PostgreSQL and create an empty database:
 
 CREATE DATABASE orders_etl;
 
-4. Configure your database connection
+4. Configure the Database Connection
 
-Copy ".env.example" to ".env":
+Copy the example environment file:
 
 copy .env.example .env
 
-Open ".env" and enter your PostgreSQL credentials:
+Open ".env" and add your PostgreSQL credentials:
 
 DB_USER=your_user
 DB_PASSWORD=your_password
@@ -70,33 +69,31 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=orders_etl
 
-The script checks that all five variables are present before connecting. If any are missing, it stops and displays an error message.
+The script checks that all five variables are set before connecting. If any are missing, it stops and displays an error message.
 
-Keep your actual ".env" file private. It is included in ".gitignore" so your credentials aren't committed to the repository.
+Your ".env" file is included in ".gitignore" to help prevent your credentials from being committed to GitHub.
 
-5. Run the pipeline
+5. Run the Pipeline
 
 python etl_orders.py
 
-You can run the script again to check that the pipeline is repeatable. With the same generated data, the output remains consistent, and the database retains 985 orders and 50 customers.
+Run the script again to check that it is repeatable. With the same generated data, the output should remain consistent, and the database should retain 985 orders and 50 customers.
 
-What came out of the pipeline?
+Results
 
 The original dataset contains 1,025 rows. After cleaning:
 
 - 25 duplicate rows were removed.
-- 15 invalid rows were separated because they had a missing price or a non-positive quantity.
+- 15 invalid rows were separated because they contained a missing price or a non-positive quantity.
 - 985 clean orders were loaded into PostgreSQL.
 
-I also compared the revenue calculated with pandas against the revenue calculated in PostgreSQL. Both returned 1,346,115.32.
+I also calculated total revenue using both pandas and PostgreSQL. Both returned 1,346,115.32.
 
-That comparison gave me a useful check that the data was being processed consistently before and after it was loaded into the database.
+Comparing the two results helped me check that the revenue calculation was consistent before and after loading the data into the database.
 
-Sample output
+Sample Output
 
-Here are some of the results from the analysis queries.
-
-Orders by status
+Orders by Status
 
 shipped    220
 reversed   208
@@ -104,7 +101,7 @@ ordered    195
 returned   185
 pending    177
 
-Top five customers by spend
+Top Five Customers by Spend
 
 C025    52,930.07
 C016    46,337.24
@@ -112,46 +109,52 @@ C043    43,027.10
 C020    41,622.77
 C045    41,270.44
 
-Monthly revenue
+Monthly Revenue
 
 2025-01       60,819.02
 ...
 2026-06       50,074.68
 TOTAL      1,346,115.32
 
-A few decisions I made
+Some Decisions I Made
 
-I used upserts instead of inserting everything from scratch.
+Using Upserts
 
-Customers use "ON CONFLICT DO NOTHING", while orders use "ON CONFLICT DO UPDATE". This lets the pipeline insert new records and update existing orders without creating duplicates.
+I used "ON CONFLICT DO NOTHING" for customers and "ON CONFLICT DO UPDATE" for orders.
 
-I loaded customers before orders.
+This allows new records to be inserted and existing orders to be updated without creating duplicate records when the pipeline runs again.
 
-The orders table references the customers table through a foreign key, so the customers need to exist first. Both loads run in a single transaction, meaning a failure rolls back the changes rather than leaving a partially completed load.
+Loading Customers First
 
-I kept invalid records separate.
+The orders table references the customers table through a foreign key, so customers need to be loaded first.
 
-Instead of simply discarding every bad row, the transformation step returns a separate "rejected" DataFrame. This makes it possible to inspect the records that didn't pass validation.
+Both loads run within a single transaction. If something fails during the load, the transaction can be rolled back instead of leaving a partially completed load.
 
-I made the data reproducible.
+Keeping Invalid Records Separate
 
-The data generator uses a fixed seed, so it produces the same dataset each time. That makes it easier to test the pipeline and compare results between runs.
+Rather than losing track of records that fail validation, the transformation step returns a separate "rejected" DataFrame. This makes it possible to inspect the invalid records.
 
-I kept database credentials out of the script.
+Making the Data Reproducible
 
-The connection details come from environment variables in ".env". I also used SQLAlchemy's "URL.create" to build the connection URL, which handles special characters in passwords more safely.
+The data generator uses a fixed seed, so it produces the same dataset on each run. This makes testing and comparing results easier.
 
-What I'd improve next
+Keeping Credentials Out of the Code
 
-There are a few things I'd like to add as I continue working on this project:
+Database credentials are stored in ".env" instead of being hardcoded in the script.
 
-- Logging to track how many rows are read, rejected, and loaded.
-- Saving rejected records to a file so they can be reviewed later.
-- Tests for the transformation logic.
-- A configuration file for settings that may change.
-- A way to handle deleted records, since upserts alone don't remove records that no longer exist in the source data.
+I also used SQLAlchemy's "URL.create" to build the database connection URL, which handles special characters in passwords more safely.
 
-Project structure
+What I'd Like to Improve
+
+There are a few things I'd like to work on next:
+
+- Add logging to track how many rows are read, rejected, and loaded.
+- Save rejected records to a file for easier inspection.
+- Write tests for the transformation logic.
+- Move configurable settings into a separate configuration file.
+- Add a way to handle deleted records, since upserts alone don't remove records that no longer exist in the source data.
+
+Project Structure
 
 orders-etl-pipeline/
 ├── etl_orders.py
